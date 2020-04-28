@@ -462,6 +462,8 @@ int TPpContext::tStringInput::scan(TPpToken* ppToken)
     int AlreadyComplained = 0;
     int len = 0;
     int ch = 0;
+    int prev = 0;
+    int prev2 = 0;
     int ii = 0;
     unsigned long long ival = 0;
     const auto floatingPointChar = [&](int ch) { return ch == '.' || ch == 'e' || ch == 'E' ||
@@ -535,6 +537,36 @@ int TPpContext::tStringInput::scan(TPpToken* ppToken)
             ungetch();
             return PpAtomIdentifier;
         case '0':
+            ungetch();
+            ungetch();
+            ungetch();
+            prev2 = getch();
+            prev = getch();
+            getch();
+
+            if (prev == '.' || prev2 == '.') {
+                do {
+                    if (len < MaxTokenLength) {
+                        ppToken->name[len++] = (char)ch;
+                        ch = getch();
+                    } else {
+                        if (!AlreadyComplained) {
+                            pp->parseContext.ppError(ppToken->loc, "name too long", "", "");
+                            AlreadyComplained = 1;
+                        }
+                        ch = getch();
+                    }
+                } while ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_');
+
+                // line continuation with no token before or after makes len == 0, and need to start over skipping white space, etc.
+                if (len == 0)
+                    continue;
+
+                ppToken->name[len] = '\0';
+                ungetch();
+                return PpAtomIdentifier;
+            }
+
             ppToken->name[len++] = (char)ch;
             ch = getch();
             if (ch == 'x' || ch == 'X') {
@@ -758,6 +790,38 @@ int TPpContext::tStringInput::scan(TPpToken* ppToken)
         case '1': case '2': case '3': case '4':
         case '5': case '6': case '7': case '8': case '9':
             // can't be hexadecimal or octal, is either decimal or floating point
+            ungetch();
+            ungetch();
+            ungetch();
+            prev2 = getch();
+            prev = getch();
+            getch();
+            
+            if (prev == '.' || prev2 == '.') {
+              do {
+                  if (len < MaxTokenLength) {
+                      ppToken->name[len++] = (char)ch;
+                      ch = getch();
+                  } else {
+                      if (! AlreadyComplained) {
+                          pp->parseContext.ppError(ppToken->loc, "name too long", "", "");
+                          AlreadyComplained = 1;
+                      }
+                      ch = getch();
+                  }
+              } while ((ch >= 'a' && ch <= 'z') ||
+                       (ch >= 'A' && ch <= 'Z') ||
+                       (ch >= '0' && ch <= '9') ||
+                       ch == '_');
+
+              // line continuation with no token before or after makes len == 0, and need to start over skipping white space, etc.
+              if (len == 0)
+                  continue;
+
+              ppToken->name[len] = '\0';
+              ungetch();
+              return PpAtomIdentifier;
+            }
 
             do {
                 if (len < MaxTokenLength)
@@ -978,8 +1042,14 @@ int TPpContext::tStringInput::scan(TPpToken* ppToken)
                 return '>';
             }
         case '.':
+            ungetch();
+            ungetch();
+            ungetch();
+            prev2 = getch();
+            prev = getch();
+            getch();
             ch = getch();
-            if (ch >= '0' && ch <= '9') {
+            if (ch >= '0' && ch <= '9' && prev != ')' && prev2 != ')') {
                 ungetch();
                 return pp->lFloatConst(0, '.', ppToken);
             } else {

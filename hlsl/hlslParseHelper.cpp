@@ -955,12 +955,8 @@ TIntermTyped* HlslParseContext::handleDotDereference(const TSourceLoc& loc, TInt
         parseSwizzleSelector(loc, field, base->getVectorSize(), selectors);
 
         if (base->isScalar()) {
-            if (selectors.size() == 1)
-                return result;
-            else {
-                TType type(base->getBasicType(), EvqTemporary, selectors.size());
-                return addConstructor(loc, base, type);
-            }
+            TType type(base->getBasicType(), EvqTemporary, selectors.size());
+            return addConstructor(loc, base, type);
         }
         if (base->getVectorSize() == 1) {
             TType scalarType(base->getBasicType(), EvqTemporary, 1);
@@ -972,19 +968,15 @@ TIntermTyped* HlslParseContext::handleDotDereference(const TSourceLoc& loc, TInt
             }
         }
 
-        if (base->getType().getQualifier().isFrontEndConstant())
-            result = intermediate.foldSwizzle(base, selectors, loc);
-        else {
-            if (selectors.size() == 1) {
-                TIntermTyped* index = intermediate.addConstantUnion(selectors[0], loc);
-                result = intermediate.addIndex(EOpIndexDirect, base, index, loc);
-                result->setType(TType(base->getBasicType(), EvqTemporary));
-            } else {
-                TIntermTyped* index = intermediate.addSwizzle(selectors, loc);
-                result = intermediate.addIndex(EOpVectorSwizzle, base, index, loc);
-                result->setType(TType(base->getBasicType(), EvqTemporary, base->getType().getQualifier().precision,
-                                selectors.size()));
-            }
+        if (selectors.size() == 1) {
+            TIntermTyped* index = intermediate.addConstantUnion(selectors[0], loc);
+            result = intermediate.addIndex(EOpIndexDirect, base, index, loc);
+            result->setType(TType(base->getBasicType(), EvqTemporary));
+        } else {
+            TIntermTyped* index = intermediate.addSwizzle(selectors, loc);
+            result = intermediate.addIndex(EOpVectorSwizzle, base, index, loc);
+            result->setType(TType(base->getBasicType(), EvqTemporary, base->getType().getQualifier().precision,
+                            selectors.size()));
         }
     } else if (base->isMatrix()) {
         TSwizzleSelectors<TMatrixSelector> selectors;

@@ -839,33 +839,25 @@ TIntermTyped* TParseContext::handleDotDereference(const TSourceLoc& loc, TInterm
             requireInt8Arithmetic(loc, ".", "can't swizzle types containing (u)int8");
 
         if (base->isScalar()) {
-            if (selectors.size() == 1)
-                return result;
-            else {
-                TType type(base->getBasicType(), EvqTemporary, selectors.size());
-                // Swizzle operations propagate specialization-constantness
-                if (base->getQualifier().isSpecConstant())
-                    type.getQualifier().makeSpecConstant();
-                return addConstructor(loc, base, type);
-            }
+            TType type(base->getBasicType(), EvqTemporary, selectors.size());
+            // Swizzle operations propagate specialization-constantness
+            if (base->getQualifier().isSpecConstant())
+                type.getQualifier().makeSpecConstant();
+            return addConstructor(loc, base, type);
         }
 
-        if (base->getType().getQualifier().isFrontEndConstant())
-            result = intermediate.foldSwizzle(base, selectors, loc);
-        else {
-            if (selectors.size() == 1) {
-                TIntermTyped* index = intermediate.addConstantUnion(selectors[0], loc);
-                result = intermediate.addIndex(EOpIndexDirect, base, index, loc);
-                result->setType(TType(base->getBasicType(), EvqTemporary, base->getType().getQualifier().precision));
-            } else {
-                TIntermTyped* index = intermediate.addSwizzle(selectors, loc);
-                result = intermediate.addIndex(EOpVectorSwizzle, base, index, loc);
-                result->setType(TType(base->getBasicType(), EvqTemporary, base->getType().getQualifier().precision, selectors.size()));
-            }
-            // Swizzle operations propagate specialization-constantness
-            if (base->getType().getQualifier().isSpecConstant())
-                result->getWritableType().getQualifier().makeSpecConstant();
+        if (selectors.size() == 1) {
+            TIntermTyped* index = intermediate.addConstantUnion(selectors[0], loc);
+            result = intermediate.addIndex(EOpIndexDirect, base, index, loc);
+            result->setType(TType(base->getBasicType(), EvqTemporary, base->getType().getQualifier().precision));
+        } else {
+            TIntermTyped* index = intermediate.addSwizzle(selectors, loc);
+            result = intermediate.addIndex(EOpVectorSwizzle, base, index, loc);
+            result->setType(TType(base->getBasicType(), EvqTemporary, base->getType().getQualifier().precision, selectors.size()));
         }
+        // Swizzle operations propagate specialization-constantness
+        if (base->getType().getQualifier().isSpecConstant())
+            result->getWritableType().getQualifier().makeSpecConstant();
     } else if (base->isStruct() || base->isReference()) {
         const TTypeList* fields = base->isReference() ?
                                   base->getType().getReferentType()->getStruct() :
@@ -2566,6 +2558,12 @@ bool TParseContext::lValueErrorCheck(const TSourceLoc& loc, const char* op, TInt
                 for (TIntermSequence::iterator p = aggrNode->getSequence().begin();
                                                p != aggrNode->getSequence().end(); p++) {
                     int value = (*p)->getAsTyped()->getAsConstantUnion()->getConstArray()[0].getIConst();
+                    if (value < 0 || value > 3) {
+                        error(loc, " l-value can't have a funny 0/1 swizzle, you moron", op, "", "");
+
+                        return true;
+                    }
+
                     offset[value]++;
                     if (offset[value] > 1) {
                         error(loc, " l-value of swizzle cannot have duplicate components", op, "", "");

@@ -1755,12 +1755,23 @@ Id Builder::createRvalueSwizzle(Decoration precision, Id typeId, Id source, cons
         operands[0] = operands[1] = source;
         return setPrecision(createSpecConstantOp(OpVectorShuffle, typeId, operands, channels), precision);
     }
+
+    std::vector<Id> values_01 = { makeFloatConstant(0.0f), makeFloatConstant(1.0f), makeFloatConstant(0.0f), makeFloatConstant(1.0f) };
+    Id vec4_t = makeVectorType(makeFloatType(32), 4);
+    Id values = makeCompositeConstant(vec4_t, values_01);
+
     Instruction* swizzle = new Instruction(getUniqueId(), typeId, OpVectorShuffle);
     assert(isVector(source));
     swizzle->addIdOperand(source);
-    swizzle->addIdOperand(source);
-    for (int i = 0; i < (int)channels.size(); ++i)
-        swizzle->addImmediateOperand(channels[i]);
+    swizzle->addIdOperand(values);
+    for (int i = 0; i < (int)channels.size(); ++i) {
+        int value = int(channels[i]);
+        if (value == -1)
+            value = 4;
+        if (value == -2)
+            value = 5;
+        swizzle->addImmediateOperand(value);
+    }
     buildPoint->addInstruction(std::unique_ptr<Instruction>(swizzle));
 
     return setPrecision(swizzle->getResultId(), precision);

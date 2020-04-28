@@ -552,6 +552,12 @@ void TParseContextBase::parseSwizzleSelector(const TSourceLoc& loc, const TStrin
             selector.push_back(3);
             fieldSet[i] = estpq;
             break;
+        case '0':
+            selector.push_back(-1);
+            break;
+        case '1':
+            selector.push_back(-2);
+            break;
 
         default:
             error(loc, "unknown swizzle selection", compString.c_str(), "");
@@ -567,11 +573,11 @@ void TParseContextBase::parseSwizzleSelector(const TSourceLoc& loc, const TStrin
             break;
         }
 
-        if (i > 0 && fieldSet[i] != fieldSet[i-1]) {
-            error(loc, "vector swizzle selectors not from the same set", compString.c_str(), "");
-            selector.resize(i);
-            break;
-        }
+        //if (i > 0 && fieldSet[i] != fieldSet[i-1]) {
+            //error(loc, "vector swizzle selectors not from the same set", compString.c_str(), "");
+            //selector.resize(i);
+            //break;
+        //}
     }
 
     // Ensure it is valid.
